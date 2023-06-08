@@ -1,6 +1,7 @@
 from abc import *
 import pandas as pd
 
+
 class SheetBalance:
 
     def __init__(self, ex_date, tr_date, asset_total):
@@ -32,32 +33,26 @@ class SheetBalance:
         self.df_sht = pd.concat([self.df_sht, df_ex]).reset_index(drop=True)
 
     def evaluate_asset(self, df_book):
+
         if len(df_book) > 0:
+            last_index = self.df_sht.index[-1]
             invest_asset = df_book["eval_asset"].sum()
-            self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_invest"] = invest_asset
-            self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_total"] = self.df_sht.loc[self.df_sht[
-                                                                                                      "date"] == self.tr_date, "asset_invest"] + \
-                                                                                  self.df_sht.loc[self.df_sht[
-                                                                                                      "date"] == self.tr_date, "asset_cash"]
+            self.df_sht.loc[last_index, "asset_invest"] = invest_asset
+            self.df_sht.loc[last_index, "asset_total"] = self.df_sht.loc[last_index, "asset_invest"] + self.df_sht.loc[last_index, "asset_cash"]
+
     def sell(self, asset):
         # sell 한 asset 만큼 cash 증가 & invest 차감
-        self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_cash"] += asset
-        self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_invest"] -= asset
-
-        self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_total"] = self.df_sht.loc[self.df_sht[
-                                                                                                  "date"] == self.tr_date, "asset_cash"] + \
-                                                                              self.df_sht.loc[self.df_sht[
-                                                                                                  "date"] == self.tr_date, "asset_invest"]
+        last_index = self.df_sht.index[-1]
+        self.df_sht.loc[last_index, "asset_cash"] += asset
+        self.df_sht.loc[last_index, "asset_invest"] -= asset
+        self.df_sht.loc[last_index, "asset_total"] = self.df_sht.loc[last_index, "asset_cash"] + self.df_sht.loc[last_index, "asset_invest"]
 
     def buy(self, asset):
         # buy 한 asset 만큼 cash 차감 & invest 증가
-        self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_cash"] -= asset
-        self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_invest"] += asset
-
-        self.df_sht.loc[self.df_sht["date"] == self.tr_date, "asset_total"] = self.df_sht.loc[self.df_sht[
-                                                                                                  "date"] == self.tr_date, "asset_cash"] + \
-                                                                              self.df_sht.loc[self.df_sht[
-                                                                                                  "date"] == self.tr_date, "asset_invest"]
+        last_index = self.df_sht.index[-1]
+        self.df_sht.loc[last_index, "asset_cash"] -= asset
+        self.df_sht.loc[last_index, "asset_invest"] += asset
+        self.df_sht.loc[last_index, "asset_total"] = self.df_sht.loc[last_index, "asset_cash"] + self.df_sht.loc[last_index, "asset_invest"]
 
 
 class SheetBook:
@@ -69,6 +64,12 @@ class SheetBook:
                      "pl_chg_pct"])
         self.ex_date = ex_date
         self.tr_date = tr_date
+
+        self.df_tr = pd.DataFrame()
+
+    def set_tr(self):
+
+        self.df_tr = self.df_sht[self.df_sht["date"] == self.tr_date]
 
     def sell(self, p_index, amt):
 
@@ -90,15 +91,10 @@ class SheetBook:
 
     def buy(self, p_date, item_cd, amt, price, asset):
 
-        # 기보유 자산 평균 재연산
-        cnt = len(self.df_sht.loc[(self.df_sht["date"] == self.tr_date) &
-                                  (self.df_sht["item_cd"] == item_cd) &
-                                  (self.df_sht["book_amt"] != 0)]
-                  )
+        df = self.df_tr[(self.df_tr["item_cd"] == item_cd) &
+                        (self.df_tr["book_amt"] != 0)]
 
-        if cnt > 0:
-            df = self.df_sht.loc[(self.df_sht["date"] == self.tr_date) & (self.df_sht["item_cd"] == item_cd)]
-
+        if len(df) > 0:
             asset += df["book_asset"].values[0]
             amt += df["book_amt"].values[0]
             price = asset / amt  # 평균단가 재연산
@@ -123,7 +119,7 @@ class SheetBook:
     def evaluate_asset(self, asset_price):
 
         # 금일자 평가자산 업데이트
-        df_tr = self.df_sht[self.df_sht["date"] == self.tr_date]
+        df_tr = self.df_tr
         for i, rows in df_tr.iterrows():
 
             item_cd = rows["item_cd"]

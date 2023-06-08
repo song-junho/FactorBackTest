@@ -15,11 +15,13 @@ with open(r'D:\MyProject\FactorSelection\monthly_invest_strategy.pickle', 'rb') 
     monthly_invest_strategy = pickle.load(fr)
 
 
-list_date = numeric_pack.get_list_mkt_date(datetime(2019,1,1), datetime(2023,5,1))
-
 invest_schedule = monthly_invest_strategy["stock"]["value"]["por"]
 invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
 invest_schedule = numeric_pack.change_date_to_mkt_date(invest_schedule)
+
+# 리밸런싱 일자
+list_rebal_date = invest_schedule["date"].unique()
+list_date = list_rebal_date
 
 # 시작일자 및 시작 현금 초기화
 date_start = list_date[0]
@@ -56,6 +58,9 @@ for p_date in tqdm(pd.to_datetime(list_rebal_date)):
     sheet_book.evaluate_asset(asset_price)
     sheet_balance.evaluate_asset(sheet_book.get_book())
 
+    # 현일자 데이터 세팅
+    sheet_book.set_tr()
+
     # 리밸런싱 강제 청산 유무
     if is_rebal_reset:
 
@@ -80,6 +85,8 @@ for p_date in tqdm(pd.to_datetime(list_rebal_date)):
         if p_date in list_rebal_date:
 
             df_inv_sch = invest_schedule[invest_schedule["date"] == p_date]
+            sheet_book.set_tr()  # 현일자 데이터 세팅
+
             for i, rows in df_inv_sch.iterrows():
 
                 p_date = rows["date"]
