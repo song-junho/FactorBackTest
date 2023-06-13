@@ -2,9 +2,30 @@
 > InvestStrategy 의 output인 투자스케줄을 기반으로 백테스트 진행  
 > Output: sheet_balance(자산) , sheet_book(북) , sheet_trade(거래)
 
+1. sheet_balance
+   * 월별 전체 자산 , 투자 자산 , 현금 자산 기록
+2. sheet_book
+   * 월별 보유 자산 현황
+3. sheet_trade
+   * 거래 기록 
 
-# Output
+# OutPut Sample
+ * item_type
+   * 의미: 자산 타입 
+   * 종류: stock, bond, commodity  
+ * w_type
+   * 의미: weight 기준
+   * 종류: equal, market_cap, z_score  
+ * weight
+   * 의미: 투자비중
 ### 1. sheet_balance(자산)
+ * asset_total
+   * 의미: 전체 자산
+ * asset_invest
+   * 의미: 투자 자산
+ * asset_cash
+   * 의미: 현금 자산 
+
 |date|	asset_total|	asset_invest|	asset_cash|
 |---|---|---|---|
 |2006-01-31|	100000000|	 96697016|	3302984|
@@ -21,6 +42,24 @@
 |2006-12-28|	109516560|	103152201|	6364359|
 
 ### 2. sheet_book(북)
+
+ * item_cd
+   * 의미: 자산 코드
+ * book_amt
+   * 의미: 매수 수량
+ * book_price
+   * 의미: 매수 평균 단가 
+ * book_asset
+   * 의미: 매수 금액  
+ * eval_price
+   * 의미: 매수 평균 단가 
+ * eval_asset
+   * 의미: 매수 금액  
+ * pl_chg
+   * 의미: 손익 금액 
+ * pl_chg_pct
+   * 의미: 손익률  
+
 |date|	item_cd|	book_amt|	book_price|	book_asset|	eval_price|	eval_asset|	pl_chg|	pl_chg_pct|
 |---|---|---|---|---|---|---|---|---|
 |2006-01-31|	000060|	87	|5788|	503556|	5788|	503556|	0|	0.0|
@@ -30,6 +69,19 @@
 |2006-01-31|	000490|	221 |2280|	503880|	2280|	503880|	0|	0.0|
 
 ### 3. sheet_trade(거래)
+
+
+ * item_cd
+   * 의미: 자산 코드
+ * buy_sell
+   * 의미: 매수/매도
+ * amt
+   * 의미: 매매 수량
+ * price
+   * 의미: 매매 단가  
+ * asset
+   * 의미: 매매 금액  
+
 
 |date|	item_cd|	buy_sell|	amt|	price|	asset|
 |---|---|---|---|---|---|
