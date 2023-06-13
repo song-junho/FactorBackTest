@@ -1,19 +1,65 @@
 from abc import *
 import pandas as pd
+from collections import deque
+import pickle
 
 
-class SheetBalance:
+def save_sheet(dir_nm, df_balance, df_book, df_trade):
+    '''
+    sheet 저장
+    '''
+    # save data
+    with open(dir_nm + '\sheet_balance.pickle', 'wb') as fw:
+        pickle.dump(df_balance, fw)
 
-    def __init__(self, ex_date, tr_date, asset_total):
+    # save data
+    with open(dir_nm + '\sheet_book.pickle', 'wb') as fw:
+        pickle.dump(df_book, fw)
 
-        self.ex_date = ex_date
-        self.tr_date = tr_date
+    # save data
+    with open(dir_nm + '\sheet_trade.pickle', 'wb') as fw:
+        pickle.dump(df_trade, fw)
+
+
+class Sheet(metaclass=ABCMeta):
+
+    def __init__(self, *args):
+
+        self.ex_date = args[0]
+        self.tr_date = args[1]
+        self.df_sht = pd.DataFrame()
+        self.update_list = deque([])
+
+    @abstractmethod
+    def sell(self, *args):
+        pass
+
+    @abstractmethod
+    def buy(self, *args):
+        pass
+
+    def update_date(self, tr_date):
+        self.ex_date = self.tr_date  # 이전 일자 갱신
+        self.tr_date = tr_date  # 현재 일자 갱신
+
+    def update_sht(self):
+
+        self.update_list.appendleft(self.df_sht)
+        self.df_sht = pd.concat(self.update_list).reset_index(drop=True)
+        self.update_list = deque([])
+
+
+class SheetBalance(Sheet):
+
+    def __init__(self, asset_total, *args):
+
+        super().__init__(*args)
 
         asset_cash = asset_total
         asset_invest = 0
 
         self.df_sht = pd.DataFrame({
-            "date": [ex_date]
+            "date": [self.ex_date]
             , "asset_total": [asset_total]
             , "asset_invest": [asset_invest]
             , "asset_cash": [asset_cash]
@@ -21,10 +67,6 @@ class SheetBalance:
 
         self.df_ex = pd.DataFrame()
         self.df_tr = pd.DataFrame()
-
-    def update_date(self, tr_date):
-        self.ex_date = self.tr_date  # 이전 일자 갱신
-        self.tr_date = tr_date  # 현재 일자 갱신
 
     def duplicate_ex(self):
         # 전일자 book 복제
@@ -55,17 +97,18 @@ class SheetBalance:
         self.df_sht.loc[last_index, "asset_total"] = self.df_sht.loc[last_index, "asset_cash"] + self.df_sht.loc[last_index, "asset_invest"]
 
 
-class SheetBook:
+class SheetBook(Sheet):
 
-    def __init__(self, ex_date, tr_date):
+    def __init__(self, *args):
 
+        super().__init__(*args)
         self.df_sht = pd.DataFrame(
             columns=["date", "item_cd", "book_amt", "book_price", "book_asset", "eval_price", "eval_asset", "pl_chg",
                      "pl_chg_pct"])
-        self.ex_date = ex_date
-        self.tr_date = tr_date
 
         self.df_tr = pd.DataFrame()
+
+        self.update_list = deque([])
 
     def set_tr(self):
 
@@ -102,11 +145,11 @@ class SheetBook:
         pl_chg = 0  # 이후 평가때 재연산
         pl_chg_pct = 0  # 이후 평가때 재연산
 
-        df_buy_asset = pd.DataFrame([[p_date, item_cd, amt, price, asset, price, asset, pl_chg, pl_chg_pct]]
-                                    , columns=["date", "item_cd", "book_amt", "book_price", "book_asset", "eval_price",
-                                               "eval_asset", "pl_chg", "pl_chg_pct"])
+        df = pd.DataFrame([[p_date, item_cd, amt, price, asset, price, asset, pl_chg, pl_chg_pct]]
+                          , columns=["date", "item_cd", "book_amt", "book_price", "book_asset", "eval_price",
+                                     "eval_asset", "pl_chg", "pl_chg_pct"])
 
-        self.df_sht = pd.concat([self.df_sht, df_buy_asset]).reset_index(drop=True)
+        self.update_list.append(df)
 
     def duplicate_ex(self):
 
@@ -137,35 +180,31 @@ class SheetBook:
             self.df_sht.loc[i, "pl_chg"] = self.df_sht.loc[i, "eval_asset"] - self.df_sht.loc[i, "book_asset"]
             self.df_sht.loc[i, "pl_chg_pct"] = self.df_sht.loc[i, "eval_price"] / self.df_sht.loc[i, "eval_price"]
 
-    def update_date(self, tr_date):
-
-        self.ex_date = self.tr_date  # 이전 일자 갱신
-        self.tr_date = tr_date  # 현재 일자 갱신
-
     def get_book(self):
 
-        df = self.df_sht[self.df_sht["date"] == self.tr_date]
-
-        return df
+        return self.df_sht[self.df_sht["date"] == self.tr_date]
 
 
-class SheetTrade:
+class SheetTrade(Sheet):
 
-    def __init__(self, ex_date, tr_date):
+    def __init__(self, *args):
+        super().__init__(*args)
+
         self.df_sht = pd.DataFrame(columns=["date", "item_cd", "buy_sell", "amt", "price", "asset"])
-        self.ex_date = ex_date
-        self.tr_date = tr_date
+        self.update_list = deque([])
 
     def sell(self, p_date, item_cd, amt, price, asset):
-        buy_sell = -1
-        df_trade = pd.DataFrame([[p_date, item_cd, buy_sell, amt, price, asset]]
-                                , columns=["date", "item_cd", "buy_sell", "amt", "price", "asset"])
 
-        self.df_sht = pd.concat([self.df_sht, df_trade]).reset_index(drop=True)
+        buy_sell = -1
+        df = pd.DataFrame([[p_date, item_cd, buy_sell, amt, price, asset]]
+                          , columns=["date", "item_cd", "buy_sell", "amt", "price", "asset"])
+
+        self.update_list.append(df)
 
     def buy(self, p_date, item_cd, amt, price, asset):
-        buy_sell = 1
-        df_trade = pd.DataFrame([[p_date, item_cd, buy_sell, amt, price, asset]]
-                                , columns=["date", "item_cd", "buy_sell", "amt", "price", "asset"])
 
-        self.df_sht = pd.concat([self.df_sht, df_trade]).reset_index(drop=True)
+        buy_sell = 1
+        df = pd.DataFrame([[p_date, item_cd, buy_sell, amt, price, asset]]
+                          , columns=["date", "item_cd", "buy_sell", "amt", "price", "asset"])
+
+        self.update_list.append(df)

@@ -1,4 +1,4 @@
-from sheet import SheetTrade, SheetBalance, SheetBook
+from sheet import SheetTrade, SheetBalance, SheetBook, save_sheet
 from price import AssetPrice
 from tqdm import tqdm
 import pandas as pd
@@ -15,7 +15,7 @@ with open(r'D:\MyProject\FactorSelection\monthly_invest_strategy.pickle', 'rb') 
     monthly_invest_strategy = pickle.load(fr)
 
 # 전략 선택 및 조합
-invest_schedule = monthly_invest_strategy["stock"]["value"]["por"]
+invest_schedule = monthly_invest_strategy["stock"]["growth"]["op_yoy_spread"]
 invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
 invest_schedule = numeric_pack.change_date_to_mkt_date(invest_schedule)
 
@@ -28,14 +28,14 @@ date_start = list_date[0]
 asset_start = 10000 * 10000
 
 # 저장 폴더명
-dir_nm = r'D:\MyProject\FactorSelection\backtest\stock_value'
+dir_nm = r'D:\MyProject\FactorSelection\backtest\stock_growth_0'
 utils.create_folder(dir_nm)
 
 
 if __name__ == "__main__":
 
     # 장부 초기화 (자산, 북, 거래)
-    sheet_balance = SheetBalance(date_start, date_start, asset_start)
+    sheet_balance = SheetBalance(asset_start, date_start, date_start)
     sheet_book = SheetBook(date_start, date_start)
     sheet_trade = SheetTrade(date_start, date_start)
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
         sheet_balance.update_date(p_date)
         sheet_book.update_date(p_date)
 
-        asset_price.set_stock_daily(p_date)
+        asset_price.set_date(p_date)
 
         # 거래 첫날은 제외
         if p_date != date_start:
@@ -92,6 +92,9 @@ if __name__ == "__main__":
                     sheet_book.sell(i, amt)
                     sheet_balance.sell(asset)
 
+                sheet_trade.update_sht()
+                sheet_book.update_sht()
+
             # buy
             if p_date in list_rebal_date:
 
@@ -108,6 +111,8 @@ if __name__ == "__main__":
                     asset = math.floor(total_asset * weight)  # 투자할 자산
 
                     price = asset_price.get_price_by_item_cd(item_cd)
+                    if price == 0: # 비상장
+                        continue
                     amt = math.floor(asset / price)
                     asset = price * amt
 
@@ -115,17 +120,10 @@ if __name__ == "__main__":
                     sheet_book.buy(p_date, item_cd, amt, price, asset)
                     sheet_balance.buy(asset)
 
+                sheet_trade.update_sht()
+                sheet_book.update_sht()
+
         else:
             pass
 
-    # save data
-    with open(dir_nm + '\sheet_balance.pickle', 'wb') as fw:
-        pickle.dump(sheet_balance.df_sht, fw)
-
-    # save data
-    with open(dir_nm + '\sheet_book.pickle', 'wb') as fw:
-        pickle.dump(sheet_book.df_sht, fw)
-
-    # save data
-    with open(dir_nm + '\sheet_trade.pickle', 'wb') as fw:
-        pickle.dump(sheet_trade.df_sht, fw)
+    save_sheet(dir_nm, sheet_balance.df_sht, sheet_book.df_sht, sheet_trade.df_sht)

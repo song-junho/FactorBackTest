@@ -15,7 +15,7 @@ class AssetPrice:
 
         self.df_stock_daily = pd.DataFrame()
         self.std_date = p_date
-        self.dict_sch_price = {} # 가격 hash_table
+        self.dict_sch_price = {}  # 가격 hash_table
 
     def set_dict_sch_price(self, invest_schedule):
         '''
@@ -38,23 +38,22 @@ class AssetPrice:
                 except:
                     continue
 
-    def set_stock_daily(self, p_date):
+    def set_date(self, p_date):
 
-        # self.df_stock_daily = self.dict_df_stock_daily[p_date]
         self.std_date = p_date
 
     def get_price_by_item_cd(self, item_cd):
 
-        price = self.dict_sch_price[item_cd][self.std_date]
-        #
-        # df = self.df_stock_daily.loc[self.df_stock_daily["StockCode"] == item_cd]
-        #
-        # if len(df) == 0:
-        #     df = self.dict_df_stock[item_cd].loc[:self.std_date]
-        #     fixed_date = df.index[-1]
-        #     price = df.iloc[-1]["Close"]
-        #     # print(self.std_date, item_cd, "SellNoPrice", fixed_date)
-        # else:
-        #     price = df["Close"].values[0]
+        try:
+            price = self.dict_sch_price[item_cd][self.std_date]
+        except:
 
+            if item_cd not in self.dict_df_stock.keys():
+                # 코넥스 등..
+                return 0
+
+            if min(self.dict_df_stock[item_cd].index) > self.std_date:
+                price = 0  # 비상장
+            else:
+                price = self.dict_df_stock[item_cd].loc[:self.std_date]["Close"][-1]
         return price
