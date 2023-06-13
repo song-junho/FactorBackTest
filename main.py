@@ -5,7 +5,7 @@ import pandas as pd
 import pickle
 from datetime import datetime
 import math
-from lib import numeric_pack
+from lib import numeric_pack, utils
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 with open(r'D:\MyProject\FactorSelection\monthly_invest_strategy.pickle', 'rb') as fr:
     monthly_invest_strategy = pickle.load(fr)
 
-
+# 전략 선택 및 조합
 invest_schedule = monthly_invest_strategy["stock"]["value"]["por"]
 invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
 invest_schedule = numeric_pack.change_date_to_mkt_date(invest_schedule)
@@ -27,94 +27,105 @@ list_date = list_rebal_date
 date_start = list_date[0]
 asset_start = 10000 * 10000
 
-# 장부 초기화 (자산, 북, 거래)
-sheet_balance = SheetBalance(date_start, date_start, asset_start)
-sheet_book = SheetBook(date_start, date_start)
-sheet_trade = SheetTrade(date_start, date_start)
+# 저장 폴더명
+dir_nm = r'D:\MyProject\FactorSelection\backtest\stock_value'
+utils.create_folder(dir_nm)
 
-# 가격 호출 클래스 초기화
-asset_price = AssetPrice(date_start)
 
-# 리밸런싱 일자
-list_rebal_date = invest_schedule["date"].unique()
+if __name__ == "__main__":
 
-# 리밸런싱 일자에 보유 자산 전부 매도 여부
-is_rebal_reset = True
+    # 장부 초기화 (자산, 북, 거래)
+    sheet_balance = SheetBalance(date_start, date_start, asset_start)
+    sheet_book = SheetBook(date_start, date_start)
+    sheet_trade = SheetTrade(date_start, date_start)
 
-# 백테스트 실행
-for p_date in tqdm(pd.to_datetime(list_rebal_date)):
+    # 가격 호출 클래스 초기화
+    asset_price = AssetPrice(date_start)
+    asset_price.set_dict_sch_price(invest_schedule)
 
-    # 일자 업데이트
-    sheet_balance.update_date(p_date)
-    sheet_book.update_date(p_date)
+    # 리밸런싱 일자
+    list_rebal_date = invest_schedule["date"].unique()
 
-    asset_price.set_stock_daily(p_date)
+    # 리밸런싱 일자에 보유 자산 전부 매도 여부
+    is_rebal_reset = True
 
-    # 전일자 Book 복제
-    sheet_book.duplicate_ex()
-    sheet_balance.duplicate_ex()
+    # 백테스트 실행
+    for p_date in tqdm(pd.to_datetime(list_rebal_date)):
 
-    # 자산 평가
-    sheet_book.evaluate_asset(asset_price)
-    sheet_balance.evaluate_asset(sheet_book.get_book())
+        # 일자 업데이트
+        sheet_balance.update_date(p_date)
+        sheet_book.update_date(p_date)
 
-    # 현일자 데이터 세팅
-    sheet_book.set_tr()
+        asset_price.set_stock_daily(p_date)
 
-    # 리밸런싱 강제 청산 유무
-    if is_rebal_reset:
+        # 거래 첫날은 제외
+        if p_date != date_start:
 
-        # sell
-        if p_date in list_rebal_date:
+            # 전일자 Book 복제
+            sheet_book.duplicate_ex()
+            sheet_balance.duplicate_ex()
 
-            df_sell = sheet_book.get_book()[["date", "item_cd", "book_amt"]]
+            # 자산 평가
+            sheet_book.evaluate_asset(asset_price)
+            sheet_balance.evaluate_asset(sheet_book.get_book())
 
-            for i, rows in df_sell.iterrows():
+        # 현일자 데이터 세팅
+        sheet_book.set_tr()
 
-                item_cd = rows["item_cd"]
-                amt = rows["book_amt"]
+        # 리밸런싱 강제 청산 유무
+        if is_rebal_reset:
 
-                price = asset_price.get_price_by_item_cd(item_cd)
-                asset = amt * price
+            # sell
+            if p_date in list_rebal_date:
 
-                sheet_trade.sell(p_date, item_cd, amt, price, asset)
-                sheet_book.sell(i, amt)
-                sheet_balance.sell(asset)
+                df_sell = sheet_book.get_book()[["date", "item_cd", "book_amt"]]
 
-        # buy
-        if p_date in list_rebal_date:
+                for i, rows in df_sell.iterrows():
 
-            df_inv_sch = invest_schedule[invest_schedule["date"] == p_date]
-            sheet_book.set_tr()  # 현일자 데이터 세팅
+                    item_cd = rows["item_cd"]
+                    amt = rows["book_amt"]
 
-            for i, rows in df_inv_sch.iterrows():
+                    price = asset_price.get_price_by_item_cd(item_cd)
+                    asset = amt * price
 
-                p_date = rows["date"]
-                item_cd = rows["item_cd"]
-                weight = rows["weight"]
+                    sheet_trade.sell(p_date, item_cd, amt, price, asset)
+                    sheet_book.sell(i, amt)
+                    sheet_balance.sell(asset)
 
-                total_asset = sheet_balance.df_sht.iloc[-1]["asset_total"]
-                asset = math.floor(total_asset * weight)  # 투자할 자산
+            # buy
+            if p_date in list_rebal_date:
 
-                price = asset_price.get_price_by_item_cd(item_cd)
-                amt = math.floor(asset / price)
-                asset = price * amt
+                df_inv_sch = invest_schedule[invest_schedule["date"] == p_date]
+                sheet_book.set_tr()  # 현일자 데이터 세팅
 
-                sheet_trade.buy(p_date, item_cd, amt, price, asset)
-                sheet_book.buy(p_date, item_cd, amt, price, asset)
-                sheet_balance.buy(asset)
+                for i, rows in df_inv_sch.iterrows():
 
-    else:
-        pass
+                    p_date = rows["date"]
+                    item_cd = rows["item_cd"]
+                    weight = rows["weight"]
 
-# save data
-with open(r'D:\MyProject\FactorSelection\sheet_balance.pickle', 'wb') as fw:
-    pickle.dump(sheet_balance.df_sht, fw)
+                    total_asset = sheet_balance.df_sht.iloc[-1]["asset_total"]
+                    asset = math.floor(total_asset * weight)  # 투자할 자산
 
-# save data
-with open(r'D:\MyProject\FactorSelection\sheet_book.pickle', 'wb') as fw:
-    pickle.dump(sheet_book.df_sht, fw)
+                    price = asset_price.get_price_by_item_cd(item_cd)
+                    amt = math.floor(asset / price)
+                    asset = price * amt
 
-# save data
-with open(r'D:\MyProject\FactorSelection\sheet_trade.pickle', 'wb') as fw:
-    pickle.dump(sheet_trade.df_sht, fw)
+                    sheet_trade.buy(p_date, item_cd, amt, price, asset)
+                    sheet_book.buy(p_date, item_cd, amt, price, asset)
+                    sheet_balance.buy(asset)
+
+        else:
+            pass
+
+    # save data
+    with open(dir_nm + '\sheet_balance.pickle', 'wb') as fw:
+        pickle.dump(sheet_balance.df_sht, fw)
+
+    # save data
+    with open(dir_nm + '\sheet_book.pickle', 'wb') as fw:
+        pickle.dump(sheet_book.df_sht, fw)
+
+    # save data
+    with open(dir_nm + '\sheet_trade.pickle', 'wb') as fw:
+        pickle.dump(sheet_trade.df_sht, fw)

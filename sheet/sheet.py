@@ -116,6 +116,9 @@ class SheetBook:
         df_book_ex.loc[:, "date"] = self.tr_date
         self.df_sht = pd.concat([self.df_sht, df_book_ex]).reset_index(drop=True)
 
+        self.df_sht["book_asset"] = self.df_sht["book_asset"].astype("int64")
+        self.df_sht["eval_asset"] = self.df_sht["eval_asset"].astype("int64")
+
     def evaluate_asset(self, asset_price):
 
         # 금일자 평가자산 업데이트
