@@ -90,3 +90,21 @@
 |2006-01-31|	000320|	1|	82	|6106|	500692
 |2006-01-31|	000370|	1|	73	|6833|	498809
 |2006-01-31|	000490|	1|	221| 2280|	503880
+
+# Factor Performance Example
+```python
+folder_nm = "stock_growth"
+
+with open(r'D:\MyProject\FactorSelection\backtest\{}\sheet_balance.pickle'.format(folder_nm), 'rb') as fr:
+    df_balance = pickle.load(fr)
+
+df_balance["chg_pct"] = df_balance["asset_total"].pct_change()
+df = df_balance[["date", "chg_pct"]].set_index("date")["chg_pct"]
+
+qs.reports.plots(df, mode='full')
+```
+![image](https://github.com/song-junho/FactorBackTest/assets/67362481/9d1f5af7-d92a-481d-94a5-85e21846022f)
+![image](https://github.com/song-junho/FactorBackTest/assets/67362481/e060001d-f3df-4eb2-a774-916b7ed475da)
+![image](https://github.com/song-junho/FactorBackTest/assets/67362481/f1169d72-56f5-4f63-9b03-5eb0d34ef525)
+![image](https://github.com/song-junho/FactorBackTest/assets/67362481/c72ba87f-0fe2-47fb-b7d0-8f93c5c07941)
+
