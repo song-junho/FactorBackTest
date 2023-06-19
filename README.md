@@ -108,3 +108,10 @@ qs.reports.plots(df, mode='full')
 ![image](https://github.com/song-junho/FactorBackTest/assets/67362481/f1169d72-56f5-4f63-9b03-5eb0d34ef525)
 ![image](https://github.com/song-junho/FactorBackTest/assets/67362481/c72ba87f-0fe2-47fb-b7d0-8f93c5c07941)
 
+# 경기 국면별 Factor Index 상대 강도
+> 경기 순환 국면 (Recovery, Expansion, Slowdown, Contraction)  
+> 목적: 각 국면별 Facor Index 상대강도 확인  
+
+x축: 물가 지표 (CPI)  
+
+![image](https://github.com/song-junho/FactorBackTest/assets/67362481/6b48faab-8c7c-4e45-98de-d6318f54ea99)
