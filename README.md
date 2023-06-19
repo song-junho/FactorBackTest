@@ -125,3 +125,12 @@ qs.reports.plots(df, mode='full')
    
  * 경기 순환 국면 차트 예시
 ![image](https://github.com/song-junho/FactorBackTest/assets/67362481/6b48faab-8c7c-4e45-98de-d6318f54ea99)
+
+ * 경기 국면별 Factor Index 수익률(월평균) 예시
+ 
+ 	|phase	     |value	     |growth	|gold    |
+ 	|---|---|---|---|
+    |contraction |1.263333	 |2.074444	|0.295604|
+    |expansion	 |1.103509	 |1.126316	|0.819298|
+    |recovery	 |2.941026	 |1.866667	|1.051282|
+    |slowdown	 |2.195238	 |2.585714	|2.200000|
