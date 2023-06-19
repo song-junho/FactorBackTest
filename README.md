@@ -112,6 +112,16 @@ qs.reports.plots(df, mode='full')
 > 경기 순환 국면 (Recovery, Expansion, Slowdown, Contraction)  
 > 목적: 각 국면별 Facor Index 상대강도 확인  
 
-x축: 물가 지표 (CPI)  
-
+ * x축: CPI
+   * 선정 이유 1: 물가 수준을 판단하는 대표적인 지표
+   * 선정 이유 2: 발표 lagging time 짧음(익월 4영업일 이내)  
+   * 가공 방식 : z_scoring(look back window: 3y , 경기 변화 반영)
+   
+ * y축: 수출 데이터
+   * 선정 이유 1: 수출 국가인 대한민국의 경기를 가장 잘 나타내는 지표
+   * 선정 이유 2: 발표 lagging time 짧음(익월 1일)  
+   * 가공 방식 : z_scoring(look back window: 3y , 경기 변화 반영)
+   
+   
+ * 경기 순환 국면 차트 예시
 ![image](https://github.com/song-junho/FactorBackTest/assets/67362481/6b48faab-8c7c-4e45-98de-d6318f54ea99)
