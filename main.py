@@ -6,6 +6,7 @@ import pickle
 from datetime import datetime
 import math
 from lib import numeric_pack, utils
+from functools import reduce
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -15,20 +16,58 @@ with open(r'D:\MyProject\FactorSelection\monthly_invest_strategy.pickle', 'rb') 
     monthly_invest_strategy = pickle.load(fr)
 
 # 전략 선택 및 조합
-invest_schedule = monthly_invest_strategy["stock"]["growth"]["op_yoy_spread"]
+list_strategy = []
+
+# 전략 1
+invest_schedule = monthly_invest_strategy["stock"]["growth"]["op_yoy"]
 invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
-invest_schedule = numeric_pack.change_date_to_mkt_date(invest_schedule)
+list_strategy.append(invest_schedule)
+
+# 전략 2
+invest_schedule = monthly_invest_strategy["stock"]["value"]["por_spr"]
+invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
+list_strategy.append(invest_schedule)
+
+# 전략 3
+invest_schedule = monthly_invest_strategy["stock"]["size"]["small_cap"]
+invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
+list_strategy.append(invest_schedule)
+
+# 전략 4
+invest_schedule = monthly_invest_strategy["stock"]["theme"]["1M"]
+invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
+list_strategy.append(invest_schedule)
+
+invest_schedule = reduce(lambda left, right : pd.merge(left, right[["date", "item_cd"]], on=["date","item_cd"], how="inner"), list_strategy)
+
+df_grp_count = invest_schedule.groupby("date").agg({"item_cd": "count"}).rename(columns={"item_cd": "count"}).reset_index()
+invest_schedule["weight"] = 0
+invest_schedule["weight"] = invest_schedule["date"].apply(lambda x: df_grp_count.loc[df_grp_count["date"] == x, "count"].values[0])
+invest_schedule["weight"] = 1 / invest_schedule["weight"]
+
+# 마켓일자로 변경
+invest_schedule["date"] = numeric_pack.change_date_to_mkt_date(invest_schedule["date"])
+
+# weight 소수점 내림
+invest_schedule["weight"] = invest_schedule["weight"]*(10**5)
+invest_schedule["weight"] = invest_schedule["weight"].astype('float').round(0) / (10**5)
+
 
 # 리밸런싱 일자
-list_rebal_date = invest_schedule["date"].unique()
-list_date = list_rebal_date
+start_date = datetime(2006, 1, 1)
+end_date = datetime(2023, 7, 1)
+list_date = pd.date_range(start_date, end_date)
+list_date = numeric_pack.get_list_eom_date(list_date)
+list_date = numeric_pack.change_date_to_mkt_date(list_date)
+
+list_rebal_date = list_date
 
 # 시작일자 및 시작 현금 초기화
 date_start = list_date[0]
 asset_start = 10000 * 10000
 
 # 저장 폴더명
-dir_nm = r'D:\MyProject\FactorSelection\backtest\stock_growth_0'
+dir_nm = r'D:\MyProject\FactorSelection\backtest\stock_growth(op_yoy)_value(por)_size(small_cap)_theme'
 utils.create_folder(dir_nm)
 
 
@@ -44,7 +83,7 @@ if __name__ == "__main__":
     asset_price.set_dict_sch_price(invest_schedule)
 
     # 리밸런싱 일자
-    list_rebal_date = invest_schedule["date"].unique()
+    # list_rebal_date = invest_schedule["date"].unique()
 
     # 리밸런싱 일자에 보유 자산 전부 매도 여부
     is_rebal_reset = True
