@@ -16,28 +16,45 @@ with open(r'D:\MyProject\FactorSelection\monthly_invest_strategy.pickle', 'rb') 
     monthly_invest_strategy = pickle.load(fr)
 
 # 전략 선택 및 조합
+set_strategy = [
+
+    {
+        "asset" : "stock"
+        , "factor" : "value"
+        , "detaiL_factor" : "por_spr"
+        , "w_type" : "equal"
+    }
+    , {
+        "asset" : "stock"
+        , "factor" : "size"
+        , "detaiL_factor" : "small_cap"
+        , "w_type" : "equal"
+    }
+    , {
+        "asset" : "stock"
+        , "factor" : "theme"
+        , "detaiL_factor" : "3M"
+        , "w_type" : "equal"
+    }
+]
 list_strategy = []
 
-# 전략 1
-invest_schedule = monthly_invest_strategy["stock"]["growth"]["op_yoy"]
-invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
-list_strategy.append(invest_schedule)
+# 전략
+strategy_nm = ""
+for strategy in set_strategy:
 
-# 전략 2
-invest_schedule = monthly_invest_strategy["stock"]["value"]["por_spr"]
-invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
-list_strategy.append(invest_schedule)
+    asset = strategy["asset"]
+    factor = strategy["factor"]
+    detaiL_factor = strategy["detaiL_factor"]
+    w_type = strategy["w_type"]
 
-# 전략 3
-invest_schedule = monthly_invest_strategy["stock"]["size"]["small_cap"]
-invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
-list_strategy.append(invest_schedule)
+    invest_schedule = monthly_invest_strategy[asset][factor][detaiL_factor]
+    invest_schedule = invest_schedule[invest_schedule["w_type"] == w_type]
+    list_strategy.append(invest_schedule)
+    strategy_nm += asset+"_"+factor+"("+detaiL_factor + ")" + "__"
+strategy_nm = strategy_nm[:-2]
 
-# 전략 4
-invest_schedule = monthly_invest_strategy["stock"]["theme"]["1M"]
-invest_schedule = invest_schedule[invest_schedule["w_type"] == "equal"]
-list_strategy.append(invest_schedule)
-
+# 전략 병합
 invest_schedule = reduce(lambda left, right : pd.merge(left, right[["date", "item_cd"]], on=["date","item_cd"], how="inner"), list_strategy)
 
 df_grp_count = invest_schedule.groupby("date").agg({"item_cd": "count"}).rename(columns={"item_cd": "count"}).reset_index()
@@ -49,8 +66,8 @@ invest_schedule["weight"] = 1 / invest_schedule["weight"]
 invest_schedule["date"] = numeric_pack.change_date_to_mkt_date(invest_schedule["date"])
 
 # weight 소수점 내림
-invest_schedule["weight"] = invest_schedule["weight"]*(10**5)
-invest_schedule["weight"] = invest_schedule["weight"].astype('float').round(0) / (10**5)
+# invest_schedule["weight"] = invest_schedule["weight"]*(10**5)
+# invest_schedule["weight"] = invest_schedule["weight"].astype('float').round(0) / (10**5)
 
 
 # 리밸런싱 일자
@@ -67,7 +84,7 @@ date_start = list_date[0]
 asset_start = 10000 * 10000
 
 # 저장 폴더명
-dir_nm = r'D:\MyProject\FactorSelection\backtest\stock_growth(op_yoy)_value(por)_size(small_cap)_theme'
+dir_nm = r'D:\MyProject\FactorSelection\backtest\{}'.format(strategy_nm)
 utils.create_folder(dir_nm)
 
 
@@ -103,6 +120,9 @@ if __name__ == "__main__":
             # 전일자 Book 복제
             sheet_book.duplicate_ex()
             sheet_balance.duplicate_ex()
+
+            # 현일자 데이터 세팅
+            sheet_book.set_tr()
 
             # 자산 평가
             sheet_book.evaluate_asset(asset_price)
@@ -140,24 +160,28 @@ if __name__ == "__main__":
                 df_inv_sch = invest_schedule[invest_schedule["date"] == p_date]
                 sheet_book.set_tr()  # 현일자 데이터 세팅
 
-                for i, rows in df_inv_sch.iterrows():
+                # 매수 종목이 너무 적은 경우 pass
+                if len(df_inv_sch) < 5:
+                    pass
+                else:
+                    for i, rows in df_inv_sch.iterrows():
 
-                    p_date = rows["date"]
-                    item_cd = rows["item_cd"]
-                    weight = rows["weight"]
+                        p_date = rows["date"]
+                        item_cd = rows["item_cd"]
+                        weight = rows["weight"]
 
-                    total_asset = sheet_balance.df_sht.iloc[-1]["asset_total"]
-                    asset = math.floor(total_asset * weight)  # 투자할 자산
+                        total_asset = sheet_balance.df_sht.iloc[-1]["asset_total"]
+                        asset = math.floor(total_asset * weight)  # 투자할 자산
 
-                    price = asset_price.get_price_by_item_cd(item_cd)
-                    if price == 0: # 비상장
-                        continue
-                    amt = math.floor(asset / price)
-                    asset = price * amt
+                        price = asset_price.get_price_by_item_cd(item_cd)
+                        if price == 0: # 비상장
+                            continue
+                        amt = math.floor(asset / price)
+                        asset = price * amt
 
-                    sheet_trade.buy(p_date, item_cd, amt, price, asset)
-                    sheet_book.buy(p_date, item_cd, amt, price, asset)
-                    sheet_balance.buy(asset)
+                        sheet_trade.buy(p_date, item_cd, amt, price, asset)
+                        sheet_book.buy(p_date, item_cd, amt, price, asset)
+                        sheet_balance.buy(asset)
 
                 sheet_trade.update_sht()
                 sheet_book.update_sht()
