@@ -52,6 +52,10 @@ class AssetPrice:
                 # 코넥스 등..
                 return 0
 
+            if len(self.dict_df_stock[item_cd].index) == 0:
+                # 코넥스 등..
+                return 0
+
             if min(self.dict_df_stock[item_cd].index) > self.std_date:
                 price = 0  # 비상장
             else:
